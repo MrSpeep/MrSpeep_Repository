@@ -1,0 +1,15 @@
+# esta tabla permite ver los valores de verdad de una proposicion p y su negación
+def  tabla():
+    # Definir las posibles valoraciones para p
+    valoraciones = [True, False]
+    
+    # Imprimir encabezados
+    print(f"{'p':<5} {'¬p':<5}")
+    print("-" * 10)
+    
+    # Calcular y mostrar los valores de p y ¬p
+    for p in valoraciones:
+        print(f"{p:<5} {not p:<5}")
+
+# Generar y mostrar la tabla de verdad
+tabla()
