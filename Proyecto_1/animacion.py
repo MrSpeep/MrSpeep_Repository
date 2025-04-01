@@ -1,97 +1,102 @@
 import math
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from runge_kutta import RungeKutta  # Asegúrate de tener este archivo en el mismo directorio
+from runge_kutta import RungeKutta
 from euler import Euler
-# Constantes físicas
-mu = 1
-K = 2
-h = 0.01
-psi_start = 0
-psi_end = 15
 
-# Tres planetas con distintos tipos de órbita
-planetas = [
-    {"nombre": "Circular",   "color": "blue",   "z0": 1.0, "w0":  0.0, "L": 1.0},
-    {"nombre": "Elíptica",   "color": "green",  "z0": 1.0, "w0": -0.1, "L": 1.0},
-    {"nombre": "Hipérbola",  "color": "orange", "z0": 0.5, "w0": -0.6, "L": 1.0},
-]
+# Configuración de constantes y parámetros
+CONFIG = {
+    "mu": 1.0,          # Constante gravitacional
+    "K": 2.0,           # Constante de fuerza
+    "h": 0.01,          # Paso de integración
+    "psi_range": (0, 15), # Rango angular [start, end]
+    "planets": [
+        {"nombre": "Circular", "color": "blue", "z0": 1.0, "w0": 0.0, "L": 1.0},
+        {"nombre": "Elíptica", "color": "green", "z0": 1.0, "w0": -0.1, "L": 1.0},
+        {"nombre": "Hipérbola", "color": "orange", "z0": 0.5, "w0": -0.6, "L": 1.0},
+    ]
+}
 
-# Resolver órbita para cada planeta
-for planeta in planetas:
-    L = planeta["L"]
-
+def create_orbital_system(L):
+    """Crea el sistema de ecuaciones diferenciales para un momento angular L dado"""
     def system(psi, y):
         z, w = y
         dz_dpsi = w
-        dw_dpsi = -z + (mu * K) / (L ** 2)
+        dw_dpsi = -z + (CONFIG["mu"] * CONFIG["K"]) / (L ** 2)
         return [dz_dpsi, dw_dpsi]
+    return system
 
-    #rk = RungeKutta(system, h)
-    euler = Euler(system, h)
-    t_span = (psi_start, psi_end)
-    y0 = [planeta["z0"], planeta["w0"]]
-    #psi_values, y_values = rk.solve(t_span, y0)
-    psi_values, y_values = euler.solve(t_span, y0)
+def calculate_orbit(method, system, y0):
+    """Calcula la órbita usando el método numérico especificado"""
+    solver = method(system, CONFIG["h"])
+    return solver.solve(CONFIG["psi_range"], y0)
 
+def convert_to_cartesian(psi_values, y_values):
+    """Convierte los resultados a coordenadas cartesianas"""
     z_vals = [y[0] for y in y_values]
-    r_vals = [1 / z if z != 0 else float("inf") for z in z_vals]
+    r_vals = [1/z if abs(z) > 1e-8 else 1e8 for z in z_vals]  # Manejo seguro de división por cero
     x_vals = [r * math.cos(psi) for r, psi in zip(r_vals, psi_values)]
     y_vals = [r * math.sin(psi) for r, psi in zip(r_vals, psi_values)]
+    return x_vals, y_vals
 
-    planeta["x"] = x_vals
-    planeta["y"] = y_vals
+# Pre-cálculo de todas las órbitas
+for planet in CONFIG["planets"]:
+    system = create_orbital_system(planet["L"])
+    # Cambiar entre Euler y Runge-Kutta según sea necesario
+    psi_values, y_values = calculate_orbit(Euler, system, [planet["z0"], planet["w0"]])
+    planet["x"], planet["y"] = convert_to_cartesian(psi_values, y_values)
+    planet["frames"] = len(psi_values)
 
-# Crear la figura
-fig, ax = plt.subplots(figsize=(7, 7))
-ax.set_title("Órbitas de tres planetas")
-ax.set_xlabel("x")
-ax.set_ylabel("y")
-ax.grid()
+# Configuración de la figura
+fig, ax = plt.subplots(figsize=(8, 8))
+ax.set_title("Simulación de Órbitas Planetarias", pad=20)
+ax.set_xlabel("Coordenada x (UA)", labelpad=10)
+ax.set_ylabel("Coordenada y (UA)", labelpad=10)
+ax.grid(alpha=0.3)
 ax.set_aspect("equal")
-ax.plot(0, 0, 'ro', label="Cuerpo central")
 
-# Ajustar límites
-all_x = sum([p["x"] for p in planetas], [])
-all_y = sum([p["y"] for p in planetas], [])
-max_range = max(max(map(abs, all_x)), max(map(abs, all_y))) * 1.1
+# Ajuste automático de límites
+all_coords = [coord for planet in CONFIG["planets"] for coord in planet["x"] + planet["y"]]
+max_range = max(abs(min(all_coords)), abs(max(all_coords))) * 1.1
 ax.set_xlim(-max_range, max_range)
 ax.set_ylim(-max_range, max_range)
+
+# Cuerpo central
+ax.plot(0, 0, 'ro', markersize=10, label="Estrella central")
 
 # Elementos animados
 lines = []
 points = []
-for planeta in planetas:
-    line, = ax.plot([], [], lw=1.5, color=planeta["color"], label=planeta["nombre"])
-    point, = ax.plot([], [], 'o', color=planeta["color"])
+for planet in CONFIG["planets"]:
+    line, = ax.plot([], [], lw=1.5, color=planet["color"], label=planet["nombre"])
+    point, = ax.plot([], [], 'o', color=planet["color"], markersize=8)
     lines.append(line)
     points.append(point)
 
-# Inicializar animación
+# Función de inicialización
 def init():
     for line, point in zip(lines, points):
         line.set_data([], [])
         point.set_data([], [])
     return lines + points
 
-# Actualización por frame (con corrección de IndexError)
+# Función de actualización optimizada
 def update(frame):
-    for i, planeta in enumerate(planetas):
-        if frame < len(planeta["x"]) and frame > 0:
-            x = planeta["x"][:frame]
-            y = planeta["y"][:frame]
-            lines[i].set_data(x, y)
-            points[i].set_data([x[-1]], [y[-1]])
-        elif frame == 0:
-            lines[i].set_data([], [])
-            points[i].set_data([], [])
+    for i, planet in enumerate(CONFIG["planets"]):
+        # Usamos el mínimo entre frame y la longitud de los datos
+        effective_frame = min(frame, len(planet["x"]) - 1)
+        if effective_frame > 0:
+            lines[i].set_data(planet["x"][:effective_frame], planet["y"][:effective_frame])
+            points[i].set_data([planet["x"][effective_frame]], [planet["y"][effective_frame]])
     return lines + points
 
-# Crear la animación
+# Crear animación con parámetros optimizados
+total_frames = min(800, max(planet["frames"] for planet in CONFIG["planets"]))
 ani = FuncAnimation(
-    fig, update, frames=800,
-    init_func=init, blit=True, interval=20, repeat=False
+    fig, update, frames=total_frames,
+    init_func=init, blit=True, interval=40, repeat=True
 )
 
-plt.legend()
+plt.legend(loc='upper right')
+plt.tight_layout()
 plt.show()

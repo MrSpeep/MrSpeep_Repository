@@ -3,7 +3,7 @@ from metodo_numerico import MetodoNumerico
 class Euler(MetodoNumerico):
     def __init__(self, system, h):
         self.system = system
-        self._h = h
+        self._h = h 
 
     @property
     def h(self):
@@ -26,7 +26,7 @@ class Euler(MetodoNumerico):
         num_steps = int((t_end - t_start) / self._h) + 1
         t_values = [t_start + i * self._h for i in range(num_steps)]
         y_values = [y0]
-        y = y0[:]
+        y = y0[:] #para podificar sin cambiar y0
         for i in range(1, num_steps):
             if t_values[i] > t_end:
                 h_last = t_end - t_values[i-1]

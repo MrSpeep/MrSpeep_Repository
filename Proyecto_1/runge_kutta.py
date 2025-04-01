@@ -1,13 +1,12 @@
-""""En el sigiente codigo orientado a objetos (leyes de Kepler) implementaremos encapsulamiento, decoradores
-    un método numerico (Runge-kutta) para determinar las orbitas de un sistema de dos cuerpos"""
 from metodo_numerico import MetodoNumerico
 import time
+from functools import wraps
 
-# Decoradores
 def cache_results(func):
     cache = {}
+    
+    @wraps(func)  
     def wrapper(*args):
-        # Convertir solo las listas o tuplas en tuplas, dejando los demás tipos intactos
         args_tuple = tuple(
             tuple(arg) if isinstance(arg, list) else arg for arg in args
         )
@@ -16,6 +15,7 @@ def cache_results(func):
         result = func(*args)
         cache[args_tuple] = result
         return result
+    
     return wrapper
 
 def timing(func):
@@ -42,8 +42,8 @@ class RungeKutta(MetodoNumerico):
             raise ValueError("El paso debe ser positivo.")
         self._h = value
 
-    @timing  # Decorador de Timing
-    @cache_results  # Decorador de Caching
+    @timing   
+    @cache_results   
     def step(self, t, y, h=None):
         if h is None:
             h = self._h
