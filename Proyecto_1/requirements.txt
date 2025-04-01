@@ -1,0 +1,7 @@
+## Requisitos
+- abc, abstractmethod
+- math
+- functools
+- mathplotlib.pyplot as plt
+- mathplotli.animation as animation
+- time
